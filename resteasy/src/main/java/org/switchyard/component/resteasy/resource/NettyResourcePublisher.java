@@ -14,8 +14,11 @@
  
 package org.switchyard.component.resteasy.resource;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
+import org.jboss.resteasy.plugins.server.servlet.ResteasyContextParameters;
 import org.jboss.resteasy.spi.ResteasyDeployment;
 import org.switchyard.ServiceDomain;
 import org.switchyard.component.common.Endpoint;
@@ -46,11 +49,17 @@ public class NettyResourcePublisher implements ResourcePublisher {
     /**
      * {@inheritDoc}
      */
-    public Endpoint publish(ServiceDomain domain, String context, List<Object> instances) throws Exception {
+    public Endpoint publish(ServiceDomain domain, String context, List<Object> instances, Map<String, String> contextParams) throws Exception {
         _nettyServer.stop();
         // CAUTION: Note that this publisher ignores context. Use it only for test purpose.
         for (Object instance : instances) {
             _nettyServer.getDeployment().getResources().add(instance);
+        }
+        if (contextParams != null) {
+            String providers = contextParams.get(ResteasyContextParameters.RESTEASY_PROVIDERS);
+            if (providers != null) {
+                _nettyServer.getDeployment().getScannedProviderClasses().addAll(Arrays.asList(providers.split(",")));
+            }
         }
         _nettyServer.start();
         return new StandaloneResource();

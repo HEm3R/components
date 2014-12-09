@@ -16,12 +16,10 @@ package org.switchyard.component.resteasy.util;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
+import java.lang.reflect.Type;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -69,10 +67,15 @@ import org.jboss.resteasy.client.core.extractors.EntityExtractor;
 import org.jboss.resteasy.client.core.extractors.EntityExtractorFactory;
 import org.jboss.resteasy.client.core.marshallers.ClientMarshallerFactory;
 import org.jboss.resteasy.client.core.marshallers.Marshaller;
+import org.jboss.resteasy.client.exception.mapper.ApacheHttpClient4ExceptionMapper;
 import org.jboss.resteasy.client.exception.mapper.ClientExceptionMapper;
+import org.jboss.resteasy.plugins.providers.RegisterBuiltin;
+import org.jboss.resteasy.plugins.server.servlet.ResteasyContextParameters;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
 import org.jboss.resteasy.util.MediaTypeHelper;
 import org.jboss.resteasy.util.IsHttpMethod;
+import org.jboss.resteasy.util.Types;
+import org.switchyard.common.type.Classes;
 import org.switchyard.component.resteasy.RestEasyLogger;
 import org.switchyard.component.resteasy.RestEasyMessages;
 import org.switchyard.component.resteasy.composer.RESTEasyBindingData;
@@ -174,7 +177,34 @@ public class ClientInvoker extends ClientInterceptorRepositoryImpl implements Me
             _uri.path(_method);
         }
 
-        _providerFactory = ResteasyProviderFactory.getInstance();
+        _providerFactory = new ResteasyProviderFactory();
+
+        boolean useBuiltins = true; // use builtin @Provider classes by default
+        if(model.getContextParamsConfig() != null) {
+            Map<String, String> contextParams = model.getContextParamsConfig().toMap();
+
+            // set use builtin @Provider classes
+            String registerBuiltins = contextParams.get(ResteasyContextParameters.RESTEASY_USE_BUILTIN_PROVIDERS);
+            if (registerBuiltins != null) {
+                useBuiltins = Boolean.parseBoolean(registerBuiltins);
+            }
+
+            // register @Provider classes
+            String providers = contextParams.get(ResteasyContextParameters.RESTEASY_PROVIDERS);
+            if (providers != null) {
+                for (String provider : providers.split(",")) {
+                    Class<?> providerClass = Classes.forName(provider);
+                    if (providerClass != null) {
+                        _providerFactory.registerProvider(providerClass);
+                    }
+                }
+            }
+        }
+        if (useBuiltins) {
+            _providerFactory.setRegisterBuiltins(true);
+            RegisterBuiltin.register(_providerFactory);
+        }
+
         _extractorFactory = new DefaultEntityExtractorFactory();
         _extractor = _extractorFactory.createExtractor(_method);
         _marshallers = ClientMarshallerFactory.createMarshallers(_resourceClass, _method, _providerFactory, null);
@@ -200,6 +230,9 @@ public class ClientInvoker extends ClientInterceptorRepositoryImpl implements Me
         cm.setDefaultMaxPerRoute(20);
         HttpClient httpClient = new DefaultHttpClient(cm);
         _executor = new ApacheHttpClient4Executor(httpClient);
+        // register ApacheHttpClient4ExceptionMapper manually for local instance of ResteasyProviderFactory
+        Type exceptionType = Types.getActualTypeArgumentsOfAnInterface(ApacheHttpClient4ExceptionMapper.class, ClientExceptionMapper.class)[0];
+        _providerFactory.addClientExceptionMapper(new ApacheHttpClient4ExceptionMapper(), exceptionType);
 
         // Authentication settings
         if (model.hasAuthentication()) {

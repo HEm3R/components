@@ -16,6 +16,7 @@ package org.switchyard.component.resteasy.osgi;
 import java.util.Dictionary;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 
 import org.jboss.logging.Logger;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
@@ -45,7 +46,7 @@ public class OsgiRESTEasyResourcePublisher implements ResourcePublisher {
     }
 
     @Override
-    public Endpoint publish(ServiceDomain domain, String context, List<Object> instances) throws Exception {
+    public Endpoint publish(ServiceDomain domain, String context, List<Object> instances, Map<String, String> contextParams) throws Exception {
         OsgiRESTEasyServletRegistry servletRegistry = (OsgiRESTEasyServletRegistry) domain.getProperty(KEY_SERVLET_REGISTRY);
         if (servletRegistry == null) {
             if (LOGGER.isDebugEnabled()) {
@@ -64,6 +65,11 @@ public class OsgiRESTEasyResourcePublisher implements ResourcePublisher {
             servlet = new OsgiRESTEasyServletWrapper().setClassLoader(Classes.getTCCL());
             Dictionary<String,String> initparams = new Hashtable<String,String>();
             initparams.put(KEY_SERVLET_MAPPING_PREFIX, alias);
+            if (contextParams != null) {
+                for (Map.Entry<String, String> cp : contextParams.entrySet()) {
+                    initparams.put(cp.getKey(), cp.getValue());
+                }
+            }
             servletRegistry.registerRESTEasyServlet(alias, servlet, initparams, null);
 
             // A workaround for https://issues.jboss.org/browse/RESTEASY-640
