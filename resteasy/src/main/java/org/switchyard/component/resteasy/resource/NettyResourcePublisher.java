@@ -20,6 +20,7 @@ import java.util.Map;
 import org.jboss.resteasy.spi.ResteasyDeployment;
 import org.switchyard.ServiceDomain;
 import org.switchyard.component.common.Endpoint;
+import org.switchyard.component.resteasy.DefaultExceptionMapper;
 import org.switchyard.component.resteasy.util.RESTEasyProviderUtil;
 
 /**
@@ -45,6 +46,8 @@ public class NettyResourcePublisher implements ResourcePublisher {
         _nettyServer.start();
     }
 
+    private boolean _defaultExceptionMapperRegistered;
+
     /**
      * {@inheritDoc}
      */
@@ -54,9 +57,15 @@ public class NettyResourcePublisher implements ResourcePublisher {
         for (Object instance : instances) {
             _nettyServer.getDeployment().getResources().add(instance);
         }
+        // Register default exception mapper
+        if (!_defaultExceptionMapperRegistered) {
+            _nettyServer.getDeployment().getProviderClasses().add(DefaultExceptionMapper.class.getCanonicalName());
+            _defaultExceptionMapperRegistered = true;
+        }
+        // Register @Provider classes
         List<String> providers = RESTEasyProviderUtil.getProviders(contextParams);
         if (providers != null) {
-            _nettyServer.getDeployment().getScannedProviderClasses().addAll(providers);
+            _nettyServer.getDeployment().getProviderClasses().addAll(providers);
         }
         _nettyServer.start();
         return new StandaloneResource();

@@ -26,6 +26,7 @@ import org.jboss.logging.Logger;
 import org.jboss.resteasy.plugins.server.sun.http.HttpContextBuilder;
 import org.switchyard.ServiceDomain;
 import org.switchyard.component.common.Endpoint;
+import org.switchyard.component.resteasy.DefaultExceptionMapper;
 import org.switchyard.component.resteasy.RestEasyLogger;
 import org.switchyard.component.resteasy.util.RESTEasyProviderUtil;
 
@@ -41,6 +42,7 @@ import org.switchyard.component.resteasy.util.RESTEasyProviderUtil;
 public class StandaloneResourcePublisher implements ResourcePublisher {
 
     private static final Logger LOGGER = Logger.getLogger(StandaloneResourcePublisher.class);
+    private static final String DEFAULT_EX_MAPPER_CLASS = DefaultExceptionMapper.class.getCanonicalName();
 
     // The global standalone HttpServer
     private static HttpServer _httpServer;
@@ -83,9 +85,13 @@ public class StandaloneResourcePublisher implements ResourcePublisher {
             resourceInstances.add(instance);
         }
         _contextBuilder.getDeployment().setResources(resourceInstances);
+        // Register default exception mapper
+        if (!_contextBuilder.getDeployment().getProviderClasses().contains(DEFAULT_EX_MAPPER_CLASS)) {
+            _contextBuilder.getDeployment().getProviderClasses().add(DEFAULT_EX_MAPPER_CLASS);
+        }
         // Register @Provider classes
         List<String> providers = RESTEasyProviderUtil.getProviders(contextParams);
-        _contextBuilder.getDeployment().setScannedProviderClasses(providers != null ? providers : Collections.<String>emptyList());
+        _contextBuilder.getDeployment().getProviderClasses().addAll(providers != null ? providers : Collections.<String>emptyList());
         _contextBuilder.setPath(context);
         _contextBuilder.bind(_httpServer);
         return new StandaloneResource();

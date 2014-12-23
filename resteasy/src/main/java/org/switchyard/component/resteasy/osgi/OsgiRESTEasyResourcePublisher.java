@@ -25,6 +25,7 @@ import org.osgi.service.http.HttpService;
 import org.switchyard.ServiceDomain;
 import org.switchyard.common.type.Classes;
 import org.switchyard.component.common.Endpoint;
+import org.switchyard.component.resteasy.DefaultExceptionMapper;
 import org.switchyard.component.resteasy.resource.ResourcePublisher;
 import org.switchyard.component.resteasy.util.RESTEasyProviderUtil;
 
@@ -83,6 +84,8 @@ public class OsgiRESTEasyResourcePublisher implements ResourcePublisher {
                 repFactory.registerProvider(provider);
             }
 
+            // Register default exception mapper
+            repFactory.addExceptionMapper(new DefaultExceptionMapper());
             // Register @Provider classes
             List<Class<?>> providerClasses = RESTEasyProviderUtil.getProviderClasses(contextParams);
             if (providerClasses != null) {
